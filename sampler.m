@@ -55,13 +55,15 @@ window_size = 256;
 hop = window_size/4;
 window = rectwin(window_size);
 n_bins = 2^nextpow2(fs*delta_t);
-
+outside_source  = 0;
+outside_samples = 0;
 
 
 for t = 1:N_steps
 	temp_source = mvnrnd(F*reshape(source(t,:),[4 1]),Q,1);
     a = temp_source(1:2) <0 ;
     b = temp_source(1:2) > 6;
+    outside_source = outside_source + max(sum(a(:)),sum(b(:)));
 	%while ((sum(a(:)) > 0) || (sum(b(:)) > 0))
 	%	temp_source = mvnrnd(F*reshape(source(t,:),[4 1])   ,Q,1);
     %end
@@ -69,12 +71,12 @@ for t = 1:N_steps
 	source(t+1,:) = temp_source;
     if t == N_steps
         rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,fs*10 - fs*(N_steps-1)*delta_t);
-        S1 = conv(rir(:,1),signal_raw(fs*(N_steps-1)*delta_t+1:end));
-        S2 = conv(rir(:,2),signal_raw(fs*(N_steps-1)*delta_t+1:end));
+        S1 = conv(rir(1,:),signal_raw(fs*(N_steps-1)*delta_t+1:end));
+        S2 = conv(rir(2,:),signal_raw(fs*(N_steps-1)*delta_t+1:end));
     else    
         rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,rir_samples);	
-        S1 = conv(rir(:,1),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
-        S2 = conv(rir(:,2),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
+        S1 = conv(rir(1,:),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
+        S2 = conv(rir(2,:),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
     end
     
     
@@ -82,13 +84,12 @@ for t = 1:N_steps
 	%Z1 and 
     [Z1,farr1,tarr1] = stft(S1,window,hop,n_bins,fs);
     [Z2,farr2,tarr2] = stft(S2,window,hop,n_bins,fs);
-    disp(sum(Z1));
-    disp(sum(Z2));
-   
+    
 	for j = 1:N_particles
 		temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
         a = temp_samp(:,1:2) < 0;
         b =  temp_samp(:,1:2) > 6;
+        outside_samples = outside_samples + max(sum(a(:)),sum(b(:)));
 		%while ( (sum(a(:)) > 0) || (sum(b(:)) > 0))
 		%	temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
         %end
@@ -99,6 +100,8 @@ for t = 1:N_steps
     
 	%kdeprob(i,:),pts = ksdensity(reshape(source_samp(t,:,1:2),[N_samples,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_samples,2]));
 end
+disp(outside_source);
+disp(outside_samples);
 
-contour(X,Y,reshape(kdeprob(1,:),size(X)));
+%contour(X,Y,reshape(kdeprob(1,:),size(X)));
 		
