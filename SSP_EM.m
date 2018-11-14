@@ -1,10 +1,9 @@
-% almost completed
 function prob = SSP_EM(mic_pos,particle_pos,z,epsilon)
 
 %%
 % t : a particular time instant we are working on
 % mic_pos =2X3
-% particle_pos = 2 x J
+% particle_pos = 4 x J
 
 prob = ones(1,J);
 c = 3*10^8;
@@ -12,10 +11,10 @@ c = 3*10^8;
 % z = 2xK
 Ts = 1/8000;
 K = size(z);
-K = K[2];                    %K : Frequency bins count
+K = K(2);                    %K : Frequency bins count
 
 J = size(particle_pos);
-J = J[2];                   % J : Sampled positions for source
+J = J(2);                   % J : Sampled positions for source
 
     
 % h and tau are given
@@ -38,7 +37,7 @@ for jj = 1:J
     for k = 1:K
         for ii = 1:2
             c = mic_pos(1,:)/2+mic_pos(2,:)/2;
-            %a = atan()   % to ask
+            gamma = atan(particle_pos(4,jj)/particle_pos(3,jj))-atan((mic_pos(ii,2)-particle_pos(2,jj))/(mic_pos(ii,1)-particle_pos(1,jj)));
             h(jj,k,ii) = exp(2j*pi*k*norm(mic_pos(ii,:)-c)*cos(gamma)/(K*Ts*c));   % assuming centre is the reference microphone then gamma_m = 0 or 180
         end
     end
@@ -91,14 +90,16 @@ while shift > epsilon
         shift = calc_distance(phi,phi1,mu,mu1,J,K);
         phi = phi1;
         mu = mu1;
+        sai = sai1;
     end
 end
 
 for jj = 1:J                %confirm
     disp('1M US $')
-%     for k = 1:K
-%         prob(1,jj) = prob(1,jj)*sai
-%     end
+    prob(1,jj) = prob(1,jj)*sai(jj,1);
+    for k = 1:K
+        prob(1,jj) = prob(1,jj)*mvnpdf(z(:,k),[0;0],reshape(phi(jj,k,:,:),[2,2]));
+    end
 end
 
 end
