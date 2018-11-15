@@ -43,21 +43,22 @@ for jj = 1:J
     end
 end
 
-phi_y = zeros(J,K,2,2);
+phi_y = zeros(J,K);
 phi = zeros(J,K,2,2);     % _init_ phi, sai, phi_r and phi_y as zeros tensors
-phi_r = zeros(J,K,2,2);   % phi, phi_y and phi_r are 2X2 matrices; phi(t,k) is a 2X2
+phi_r = zeros(J,K);   % phi, phi_y and phi_r are 2X2 matrices; phi(t,k) is a 2X2
 sai = ones(J,1)/J;        % for each j and k
 
 shift = 10000;  % a big number
 iter = 0;       % counter
-epsilon = 0.0001; % percision
+epsil = 0.0001; % percision
+max_iter = 20;
                    
 %formatSpec = 'iteration: %d, error: %2.4f, mu1: [%2.4f %2.4f], mu2: [%2.4f %2.4f] \n';
 %%
 
 mu = ones(J,K)/J;              % mu : is an J X K dimen matrix    
  
-while shift > epsilon
+while shift > epsil && iter  .< max_iter
     tic;
     mu1 = ones(J,K)/J;
     iter = iter + 1;
@@ -73,25 +74,22 @@ while shift > epsilon
                 p = mvnpdf(z(:,k),[0;0],reshape(phi(jj,k,:,:),[2,2]));
                 mu1(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
             end
-            mu1(:,k) = mu(:,k)/sum(mu(:,k));
+            mu1(:,k) = mu1(:,k)/sum(mu1(:,k));
         end
     end
     
-    phi_y1 = zeros(J,K,2,2);
+    phi_y1 = zeros(J,K);
     phi1 = zeros(J,K,2,2);     % _init_ phi, sai, phi_r and phi_y as zeros tensors
-    phi_r1 = zeros(J,K,2,2);   % phi, phi_y and phi_r are 2X2 matrices; phi(t,k) is a 2X2
-    sai1 = ones(J,1)/J;        % for each j and k
+    phi_r1 = zeros(J,K);   % phi_y and phi_r are 1X1 matrices; phi(t,k) is a 2X2
+	b = rand(2,J);
     
     for k = 1:K
         for jj = 1:J
-            sai1(jj) = mean(mu1(jj,:));
-            b(jj,:) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
-            %disp(size(b(jj,:)));
-            %disp(size((eye(2) - b(jj,:)'*reshape(h(jj,k,:),[1 2]))*inv(reshape(tau(k,:,:),[2,2]))));
-            %disp(size(z(:,k)));
-            phi_r1(jj, k,:,:) = (z(:,k))'*(eye(2) - b(jj,:)'*reshape(h(jj,k,:),[1 2]))*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
-            phi_y1(jj, k,:,:) = b(jj,:)*((z(:,k))*z(:,k)'-reshape(phi_r1(jj,k,:,:),[2,2])*reshape(tau(k,:,:),[2,2]))*(b(jj,:))';
-            phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[2,1])'*reshape(phi_y1(jj,k,:,:),[2,2]) + reshape(tau(k,:,:),[2,2])*reshape(phi_r1(jj,k,:,:),[2,2]);  
+            sai(jj) = mean(mu1(jj,:));
+            b(:,jj) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
+            phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[1 2]))*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
+            phi_y1(jj, k) = (b(:,jj))'*((z(:,k))*z(:,k)'-phi_r1(jj,k)*reshape(tau(k,:,:),[2,2]))*b(:,jj);
+            phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[1,2])*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);  
         end
               
     end
@@ -102,13 +100,11 @@ while shift > epsilon
         disp(shift);
         phi = phi1;
         mu = mu1;
-        sai = sai1;
     end
-    disp(toc);
+    toc
 end
 
 for jj = 1:J                %confirm
-    disp('1M US $')
     prob(1,jj) = prob(1,jj)*sai(jj,1);
     for k = 1:K
         [~,r] = chol(reshape(phi(jj,k,:,:),[2,2]));
