@@ -1,6 +1,5 @@
 function prob = SSP_EM(mic_pos,particle_pos,z,epsilon)
 
-%%
 % t : a particular time instant we are working on
 % mic_pos =2X3
 % particle_pos = 4 x J
@@ -13,8 +12,7 @@ K = size(z);
 K = K(2);                    %K : Frequency bins count
 
 J = size(particle_pos,2);
-prob = ones(1,J);
-                   % J : Sampled positions for source
+prob = ones(1,J);         % J : Sampled positions for source
 
     
 % h and tau are given
@@ -30,8 +28,7 @@ for k = 1:K
          end
     end
 end
-%disp(inv(reshape(tau(1,:,:),[2,2])))
-%disp('#############################################################################')
+
 h = zeros(J,K,2);
 for jj = 1:J
     for k = 1:K
@@ -43,80 +40,70 @@ for jj = 1:J
     end
 end
 
-phi_y = zeros(J,K);
-phi = zeros(J,K,2,2);     % _init_ phi, sai, phi_r and phi_y as zeros tensors
-phi_r = zeros(J,K);   % phi, phi_y and phi_r are 2X2 matrices; phi(t,k) is a 2X2
-sai = ones(J,1)/J;        % for each j and k
 
 shift = 10000;  % a big number
 iter = 0;       % counter
 epsil = 0.000001; % percision
-max_iter = 20;
+max_iter = 50;
+
+phi_y1 = zeros(J,K);
+phi1 = zeros(J,K,2,2);     % _init_ phi, sai, phi_r and phi_y as zeros tensors
+phi_r1 = zeros(J,K);   % phi_y and phi_r are 1X1 matrices; phi(t,k) is a 2X2
+sai = ones(J,1)/J;        % for each j and k
+b = rand(2,J);
+
+for k = 1:K
+    for jj = 1:J
+        b(:,jj) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
+        phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[2,1])')*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
+        phi_y1(jj, k) = ((b(:,jj))'*((z(:,k))*z(:,k)'-real(phi_r1(jj,k))*reshape(tau(k,:,:),[2,2]))*b(:,jj));
+        phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[2,1])'*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);
+        r = rank(reshape(phi1(jj,k,:,:),[2,2]));
+        if r/2<1
+            disp('aa rha hai yaha')
+            disp(r)
+        end
+    end
+end
                    
 %formatSpec = 'iteration: %d, error: %2.4f, mu1: [%2.4f %2.4f], mu2: [%2.4f %2.4f] \n';
-%%
 
 mu = ones(J,K)/J;              % mu : is an J X K dimen matrix    
  
 while shift > epsil && iter  < max_iter
     %reshape(phi(1,1,:,:),[2,2])
     tic;
-    mu1 = ones(J,K)/J;
+    mu_new = ones(J,K)/J;
     iter = iter + 1;
-    if iter ~= 1
+    disp(iter)
+    if iter > 0
         for k = 1:K
             for jj = 1:J  
-                %disp(jj)
-                %disp(k)
-                p = complex_gauss(z(:,k),reshape(phi(jj,k,:,:),[2,2]));
-                mu1(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
+                p = complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
+                mu_new(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
             end
-            mu1(:,k) = mu1(:,k)/sum(mu1(:,k));
+            mu_new(:,k) = mu_new(:,k)/sum(mu_new(:,k));
         end
     end
     
-    phi_y1 = zeros(J,K);
-    phi1 = zeros(J,K,2,2);     % _init_ phi, sai, phi_r and phi_y as zeros tensors
-    phi_r1 = zeros(J,K);   % phi_y and phi_r are 1X1 matrices; phi(t,k) is a 2X2
-	b = rand(2,J);
+
     
-    for k = 1:K
-        for jj = 1:J
-            sai(jj,1) = mean(mu1(jj,:));
-            b(:,jj) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
-            %disp((reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])))
-            phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[2,1])')*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
-            %disp(phi_r1(jj, k))
-            phi_y1(jj, k) = real((b(:,jj))'*((z(:,k))*z(:,k)'-real(phi_r1(jj,k))*reshape(tau(k,:,:),[2,2]))*b(:,jj));
-            phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[2,1])'*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);  
-        end
-              
-    end
-    if phi==phi1 
-        if mu==mu1
-            disp('cfghjbkn')
-        end
+    for jj = 1:J
+        sai(jj,1) = sum(mu_new(jj,:))/K;
     end
     
-    if iter >0
-        shift = calc_distance(phi,phi1,J,K);%,mu,mu1
-        %disp(shift);
-        phi = phi1;
-        mu = mu1;
+    if iter>1
+        shift = calc_distance(mu,mu_new);
+        disp(shift)
+        mu = mu_new;
     end
     toc
 end
 
 for jj = 1:J                %confirm
     prob(1,jj) = prob(1,jj)*sai(jj,1);
-    
     for k = 1:K
-        [~,r] = chol(reshape(phi(jj,k,:,:),[2,2]));
-        if r ~= 0 && rank(reshape(phi(jj,k,:,:),[2,2])) ~= size(reshape(phi(jj,k,:,:),[2,2]),1)
-            %disp('is it here')
-            %disp(reshape(phi(jj,k,:,:),[2,2]));
-        end
-        prob(1,jj) = prob(1,jj)*complex_gauss(z(:,k),reshape(phi(jj,k,:,:),[2,2]));
+        prob(1,jj) = prob(1,jj)*complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
     end
 end
 
