@@ -1,7 +1,7 @@
 clear;clc;
 %Source Motion Model Parameters
 delta_t = 0.375;
-N_particles = 1000;
+N_particles = 100;
 N_steps = int64(10/delta_t);
 beta = 2;
 v_bar = 1;
@@ -14,7 +14,7 @@ Q = [b^2*delta_t^2*eye(2),zeros(2,2);zeros(2,2),b^2*eye(2)];
 
 %True source and microphone motion models
 source = zeros(N_steps+1,4);
-source(1,1:2) = 0.5*[randi([3 9],1,2)] ;
+source(1,:) = 0.5*randi([3 9],1,4) ;
 mic = zeros(N_steps+1,2,3);
 mic(1,1,:) = [1.35,1,1.5];
 mic(1,2,:) = [1.65,1,1.5];
@@ -35,7 +35,7 @@ rt60  = 0.5;
 
 %Sampled Source Positions
 source_samp = zeros(N_steps+1,N_particles,4);
-source_samp(1,:,:) = [0.5*randi([3 9],N_particles,2) zeros(N_particles,2)];
+source_samp(1,:,:) = 0.5*randi([3 9],N_particles,4);
 
 
 %Grid points
@@ -85,6 +85,11 @@ for t = 1:N_steps
     
     %STFT with signal array
 	%Z1 and 
+    S1_ind = double(S1~=0);
+    S2_ind = double(S2~=0);
+    tot_ind = S1_ind + S2_ind;
+    S1 = S1(tot_ind==2);
+    S2 = S2(tot_ind==2);
     
 	for j = 1:N_particles
 		temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
@@ -96,16 +101,20 @@ for t = 1:N_steps
         %end
    		source_samp(t+1,j,:) = temp_samp;
 	%Update equations for weight
-    
+    end
     prob_new = SSP_EM(reshape(mic(t,:,:),[2 3]),reshape(source_samp(t,:,:),[N_particles 4])',[S1;S2],10e-1);
 	disp(norm(prob_new));
     w(t+1,:) = w(t,:).*prob_new;
-    end
     disp(t);
-	%kdeprob(i,:),pts = ksdensity(reshape(source_samp(t,:,1:2),[N_samples,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_samples,2]));
+	[kdeprob(i,:),pts] = ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]));
 end
 disp(outside_source);
 disp(outside_samples);
-
-contour(X,Y,reshape(kdeprob(1,:),size(X)));
-		
+[X,Y] = meshgrid(0:0.1:6,0:0.1:6);
+for i =1:N_steps
+    figure;
+    contour(X,Y,reshape(kdeprob(i,:),size(X)));
+    hold on;
+    scatter(source(:,1),source(:,2));
+	hold on;	
+end

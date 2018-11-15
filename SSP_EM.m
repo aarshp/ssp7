@@ -55,8 +55,8 @@ b = rand(2,J);
 for k = 1:K
     for jj = 1:J
         b(:,jj) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
-        phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[2,1])')*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
-        phi_y1(jj, k) = ((b(:,jj))'*((z(:,k))*z(:,k)'-real(phi_r1(jj,k))*reshape(tau(k,:,:),[2,2]))*b(:,jj));
+        phi_r1(jj, k) = real((z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[2,1])')*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k)));
+        phi_y1(jj, k) = real(((b(:,jj))'*((z(:,k))*z(:,k)'-real(phi_r1(jj,k))*reshape(tau(k,:,:),[2,2]))*b(:,jj)));
         phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[2,1])'*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);
         r = rank(reshape(phi1(jj,k,:,:),[2,2]));
         if r/2<1
@@ -72,14 +72,22 @@ mu = ones(J,K)/J;              % mu : is an J X K dimen matrix
  
 while shift > epsil && iter  < max_iter
     %reshape(phi(1,1,:,:),[2,2])
-    tic;
+    %tic;
     mu_new = ones(J,K)/J;
     iter = iter + 1;
-    disp(iter)
+    %disp(iter)
     if iter > 0
         for k = 1:K
             for jj = 1:J  
-                p = complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
+                try 
+                    p = complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
+                catch err
+                    disp(err);
+                    disp(reshape(phi1(jj,k,:,:),[2,2]));
+                    disp(jj);
+                    disp(k);
+                    disp("J,k values");
+                end    
                 mu_new(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
             end
             mu_new(:,k) = mu_new(:,k)/sum(mu_new(:,k));
