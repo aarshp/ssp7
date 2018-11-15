@@ -1,0 +1,3 @@
+[submodule "RIR-Generator"]
+	path = RIR-Generator
+	url = ./RIR-Generator/

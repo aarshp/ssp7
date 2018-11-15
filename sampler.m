@@ -31,7 +31,6 @@ room_dim = [6 6 2.5];
 fs = 8000;
 c = 340;
 rt60  = 0.5;
-rir_samples = fs*delta_t;
 %rir(1,:,:) = rir_generator(c,fs,mic(1,:,:),[source(1,1:2) 0],room_dim,rt60,rir_samples);
 
 %Sampled Source Positions
@@ -51,14 +50,17 @@ signal_raw = signal_raw.audio_samps;
 %signal(N_steps,:) = reshape(signal_raw((N_steps-1)*fs*delta_t +1 :end),[1 (fs*10 -(N_steps-1)*fs*delta_t)]);
 
 %STFT params
-window_size = 256;
-hop = window_size/4;
+window_size = 400;
 window = rectwin(window_size);
-n_bins = 2^nextpow2(fs*delta_t);
+n_bins = 2^nextpow2(window_size);
 outside_source  = 0;
 outside_samples = 0;
+rir_samples = fs*delta_t;
 
 
+%weights
+w = zeros(N_steps+1,N_particles);
+w(1,:) = rand(1,N_particles)';
 for t = 1:N_steps
 	temp_source = mvnrnd(F*reshape(source(t,:),[4 1]),Q,1);
     a = temp_source(1:2) <0 ;
@@ -70,20 +72,19 @@ for t = 1:N_steps
     
 	source(t+1,:) = temp_source;
     if t == N_steps
-        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,fs*10 - fs*(N_steps-1)*delta_t);
-        S1 = conv(rir(1,:),signal_raw(fs*(N_steps-1)*delta_t+1:end));
-        S2 = conv(rir(2,:),signal_raw(fs*(N_steps-1)*delta_t+1:end));
+        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2 3]),[source(t,1:2) 0],room_dim,rt60,n_bins);
+        Y = fft(signal_raw(fs*(N_steps-1)*delta_t+1:fs*(N_steps-1)*delta_t+window_size).*window,n_bins);
+        S1 = conv(rir(1,:),Y);
+        S2 = conv(rir(2,:),Y);
     else    
-        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,rir_samples);	
-        S1 = conv(rir(1,:),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
-        S2 = conv(rir(2,:),signal_raw((t-1)*fs*delta_t + 1: t*fs*delta_t));
+        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,n_bins);	
+        Y = fft(signal_raw((t-1)*fs*delta_t+1: (t-1)*fs*delta_t +window_size).*window,n_bins);
+        S1 = rir(1,:).*Y';
+        S2 = rir(2,:).*Y';
     end
-    
     
     %STFT with signal array
 	%Z1 and 
-    [Z1,farr1,tarr1] = stft(S1,window,hop,n_bins,fs);
-    [Z2,farr2,tarr2] = stft(S2,window,hop,n_bins,fs);
     
 	for j = 1:N_particles
 		temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
@@ -95,13 +96,16 @@ for t = 1:N_steps
         %end
    		source_samp(t+1,j,:) = temp_samp;
 	%Update equations for weight
-	%w(t+1,j,:) = w(t,j,:)
-    end
     
+    prob_new = SSP_EM(reshape(mic(t,:,:),[2 3]),reshape(source_samp(t,:,:),[N_particles 4])',[S1;S2],10e-1);
+	disp(norm(prob_new));
+    w(t+1,:) = w(t,:).*prob_new;
+    end
+    disp(t);
 	%kdeprob(i,:),pts = ksdensity(reshape(source_samp(t,:,1:2),[N_samples,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_samples,2]));
 end
 disp(outside_source);
 disp(outside_samples);
 
-%contour(X,Y,reshape(kdeprob(1,:),size(X)));
+contour(X,Y,reshape(kdeprob(1,:),size(X)));
 		
