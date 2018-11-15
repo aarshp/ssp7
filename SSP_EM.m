@@ -30,8 +30,8 @@ for k = 1:K
          end
     end
 end
-
-
+%disp(inv(reshape(tau(1,:,:),[2,2])))
+%disp('#############################################################################')
 h = zeros(J,K,2);
 for jj = 1:J
     for k = 1:K
@@ -50,7 +50,7 @@ sai = ones(J,1)/J;        % for each j and k
 
 shift = 10000;  % a big number
 iter = 0;       % counter
-epsil = 0.0001; % percision
+epsil = 0.000001; % percision
 max_iter = 20;
                    
 %formatSpec = 'iteration: %d, error: %2.4f, mu1: [%2.4f %2.4f], mu2: [%2.4f %2.4f] \n';
@@ -58,20 +58,17 @@ max_iter = 20;
 
 mu = ones(J,K)/J;              % mu : is an J X K dimen matrix    
  
-while shift > epsil && iter  .< max_iter
+while shift > epsil && iter  < max_iter
+    %reshape(phi(1,1,:,:),[2,2])
     tic;
     mu1 = ones(J,K)/J;
     iter = iter + 1;
     if iter ~= 1
         for k = 1:K
-            for jj = 1:J
-                [~,r] = chol(reshape(phi(jj,k,:,:),[2,2]));
-                if r ~= 0 || rank(reshape(phi(jj,k,:,:),[2,2])) ~= size(reshape(phi(jj,k,:,:),[2,2]),1)
-                    disp(reshape(phi(jj,k,:,:),[2,2]));
-                    disp(jj);
-                    disp(k);
-                end    
-                p = mvnpdf(z(:,k),[0;0],reshape(phi(jj,k,:,:),[2,2]));
+            for jj = 1:J  
+                %disp(jj)
+                %disp(k)
+                p = complex_gauss(z(:,k),reshape(phi(jj,k,:,:),[2,2]));
                 mu1(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
             end
             mu1(:,k) = mu1(:,k)/sum(mu1(:,k));
@@ -85,19 +82,25 @@ while shift > epsil && iter  .< max_iter
     
     for k = 1:K
         for jj = 1:J
-            sai(jj) = mean(mu1(jj,:));
+            sai(jj,1) = mean(mu1(jj,:));
             b(:,jj) = inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])/(reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1]));
-            phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[1 2]))*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
-            phi_y1(jj, k) = (b(:,jj))'*((z(:,k))*z(:,k)'-phi_r1(jj,k)*reshape(tau(k,:,:),[2,2]))*b(:,jj);
-            phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[1,2])*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);  
+            %disp((reshape(h(jj,k,:),[2,1])'*inv(reshape(tau(k,:,:),[2,2]))*reshape(h(jj,k,:),[2,1])))
+            phi_r1(jj, k) = (z(:,k))'*(eye(2) - b(:,jj)*reshape(h(jj,k,:),[2,1])')*inv(reshape(tau(k,:,:),[2,2]))*(z(:,k));
+            %disp(phi_r1(jj, k))
+            phi_y1(jj, k) = real((b(:,jj))'*((z(:,k))*z(:,k)'-real(phi_r1(jj,k))*reshape(tau(k,:,:),[2,2]))*b(:,jj));
+            phi1(jj,k,:,:) = reshape(h(jj,k,:),[2,1])*reshape(h(jj,k,:),[2,1])'*phi_y1(jj,k) + reshape(tau(k,:,:),[2,2])*phi_r1(jj,k,:,:);  
         end
               
     end
-    
+    if phi==phi1 
+        if mu==mu1
+            disp('cfghjbkn')
+        end
+    end
     
     if iter >0
-        shift = calc_distance(phi,phi1,mu,mu1,J,K);
-        disp(shift);
+        shift = calc_distance(phi,phi1,J,K);%,mu,mu1
+        %disp(shift);
         phi = phi1;
         mu = mu1;
     end
@@ -106,12 +109,14 @@ end
 
 for jj = 1:J                %confirm
     prob(1,jj) = prob(1,jj)*sai(jj,1);
+    
     for k = 1:K
         [~,r] = chol(reshape(phi(jj,k,:,:),[2,2]));
         if r ~= 0 && rank(reshape(phi(jj,k,:,:),[2,2])) ~= size(reshape(phi(jj,k,:,:),[2,2]),1)
-            disp(reshape(phi(jj,k,:,:),[2,2]));
+            %disp('is it here')
+            %disp(reshape(phi(jj,k,:,:),[2,2]));
         end
-        prob(1,jj) = prob(1,jj)*mvnpdf(z(:,k),[0;0],reshape(phi(jj,k,:,:),[2,2]));
+        prob(1,jj) = prob(1,jj)*complex_gauss(z(:,k),reshape(phi(jj,k,:,:),[2,2]));
     end
 end
 
