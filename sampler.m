@@ -105,15 +105,18 @@ for t = 1:N_steps
     prob_new = SSP_EM(reshape(mic(t,:,:),[2 3]),reshape(source_samp(t,:,:),[N_particles 4])',[S1;S2],10e-1);
 	disp(norm(prob_new));
     w(t+1,:) = w(t,:).*prob_new;
-    disp(t);
-	[kdeprob(i,:),pts] = ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]));
+    figure;
+    ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]),'PlotFcn','contour');
+    hold on;
+    scatter(source(t,1),source(t,2));
+    
 end
 disp(outside_source);
 disp(outside_samples);
 [X,Y] = meshgrid(0:0.1:6,0:0.1:6);
 for i =1:N_steps
     figure;
-    contour(X,Y,reshape(kdeprob(i,:),size(X)));
+    contour(X,Y,reshape(real(kdeprob(i,:)),size(X)));
     hold on;
     scatter(source(:,1),source(:,2));
 	hold on;	

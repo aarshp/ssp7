@@ -102,10 +102,8 @@ while shift > epsil && iter  < max_iter
     
     if iter>1
         shift = calc_distance(mu,mu_new);
-        disp(shift)
         mu = mu_new;
     end
-    toc
 end
 
 for jj = 1:J                %confirm
