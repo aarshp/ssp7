@@ -14,9 +14,10 @@ ula = phased.ULA('NumElements',11,'ElementSpacing',uniform_distance);
 ang1 = [-20; 0];          
 ang2 = [30; 0];
 
-%Different sets of angles which are closer than the earlier set
-% ang1 = [-25; 0];
-% ang2 = [-20; 0];
+%Different sets of angles which are closer than the earlier set for 2nd
+%experiment
+ang1 = [-25; 0];
+ang2 = [-20; 0];
 
 %signal model with 10 sources at equally spaced between -60 and +60
 angs = [ang1 ang2];
@@ -30,7 +31,7 @@ Nsamp = 100;        % 100 samples for generated signal
 % We are running monte carlo for 20 discrete values of the SNR 
 k = linspace(-20,20,20);
 % different SNR range for 2nd experiment
-% k = linspace(-5,40,20);
+k = linspace(-5,40,20);
 param_power_noise = 10.^(-k/10);
 
 %storing the estimated values for each snr value

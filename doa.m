@@ -27,25 +27,25 @@ ang = [ang1(1,1) ang2(1,1) ang3(1,1) ang4(1,1) ang5(1,1) ang6(1,1)...
     ang7(1,1) ang8(1,1) ang9(1,1) ang10(1,1)]/180*pi;
 
 % Another set of angles for another experiment
-ang1 = [-60; 0];          % First signal
-ang2 = [-50; 0];          % Second signal
-ang3 = [-34; 0];
-ang4 = [-31; 0];
-ang5 = [-20; 0];
-ang6 = [-5; 0];
-ang7 = [-8; 0];
-ang8 = [5; 0];
-ang9 = [10; 0];
-ang10 = [25; 0];
-ang11 = [41; 0];
-ang12 = [44; 0];
-ang13 = [60; 0]
-
-angs = [ang1 ang2 ang3 ang4 ang5 ang6 ang7 ang8 ang9 ang10 ang11 ang12...
-    ang13];
-ang = [ang1(1,1) ang2(1,1) ang3(1,1) ang4(1,1) ang5(1,1) ang6(1,1)...
-    ang7(1,1) ang8(1,1) ang9(1,1) ang10(1,1) ang11(1,1) ang12(1,1)...
-    ang13(1,1)]/180*pi;
+% ang1 = [-60; 0];          % First signal
+% ang2 = [-50; 0];          % Second signal
+% ang3 = [-34; 0];
+% ang4 = [-31; 0];
+% ang5 = [-20; 0];
+% ang6 = [-5; 0];
+% ang7 = [-8; 0];
+% ang8 = [5; 0];
+% ang9 = [10; 0];
+% ang10 = [25; 0];
+% ang11 = [41; 0];
+% ang12 = [44; 0];
+% ang13 = [60; 0]
+% 
+% angs = [ang1 ang2 ang3 ang4 ang5 ang6 ang7 ang8 ang9 ang10 ang11 ang12...
+%     ang13];
+% ang = [ang1(1,1) ang2(1,1) ang3(1,1) ang4(1,1) ang5(1,1) ang6(1,1)...
+%     ang7(1,1) ang8(1,1) ang9(1,1) ang10(1,1) ang11(1,1) ang12(1,1)...
+%     ang13(1,1)]/180*pi;
 
 pos = getElementPosition(ula)/lambda; 
 
