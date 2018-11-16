@@ -87,6 +87,11 @@ while shift > epsil && iter  < max_iter
                     disp(jj);
                     disp(k);
                     disp("J,k values");
+                end
+                if  isinf(p)
+                    disp(jj);
+                    disp(k);
+                    disp(reshape(phi1(jj,k,:,:),[2,2]));
                 end    
                 mu_new(jj,k) = sai(jj,1)*p;    % completed it with reshape(phi(jj,k,:,:),[2,2])
             end
@@ -105,12 +110,15 @@ while shift > epsil && iter  < max_iter
         mu = mu_new;
     end
 end
-
+max1 =0; 
 for jj = 1:J                %confirm
     prob(1,jj) = prob(1,jj)*sai(jj,1);
     for k = 1:K
-        prob(1,jj) = prob(1,jj)*complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
+        if complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2])) > max1
+            max1=complex_gauss(z(:,k),reshape(phi1(jj,k,:,:),[2,2]));
+        end
     end
+    prob(1,jj) = prob(1,jj)*max1;
 end
 
 end

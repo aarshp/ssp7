@@ -2,14 +2,18 @@ clear;clc;
 %Source Motion Model Parameters
 delta_t = 0.375;
 N_particles = 100;
-N_steps = int64(10/delta_t);
+N_steps = int64(2/delta_t);
 beta = 2;
 v_bar = 1;
+frame_length = 0.05;
 a = exp(-beta*delta_t);
+as = exp(-beta*frame_length);
 b = v_bar*sqrt(1-a^2);
+bs = v_bar*sqrt(1-as^2);
 F = [eye(2), a*delta_t*eye(2);zeros(2,2),a*eye(2)];
+Fs = [eye(2), as*frame_length*eye(2);zeros(2,2),as*eye(2)];
 Q = [b^2*delta_t^2*eye(2),zeros(2,2);zeros(2,2),b^2*eye(2)];
-
+Qs = [bs^2*frame_length^2*eye(2),zeros(2,2);zeros(2,2),bs^2*eye(2)];
 
 
 %True source and microphone motion models
@@ -46,16 +50,17 @@ kdeprob = zeros(N_steps,size(grid_pts,1));
 %Signal Array : sig 
 signal_raw = load('timit_audio.mat');
 signal_raw = signal_raw.audio_samps;
+signal_raw = signal_raw(1:16000);
 %signal = reshape(signal_raw(1:(N_steps-1)*fs*delta_t), [N_steps-1 fs*delta_t]);
 %signal(N_steps,:) = reshape(signal_raw((N_steps-1)*fs*delta_t +1 :end),[1 (fs*10 -(N_steps-1)*fs*delta_t)]);
 
 %STFT params
-window_size = 400;
+window_size = 400;%Frame length
 window = rectwin(window_size);
 n_bins = 2^nextpow2(window_size);
 outside_source  = 0;
 outside_samples = 0;
-rir_samples = fs*delta_t;
+
 
 
 %weights
@@ -72,52 +77,53 @@ for t = 1:N_steps
     
 	source(t+1,:) = temp_source;
     if t == N_steps
-        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2 3]),[source(t,1:2) 0],room_dim,rt60,n_bins);
-        Y = fft(signal_raw(fs*(N_steps-1)*delta_t+1:fs*(N_steps-1)*delta_t+window_size).*window,n_bins);
-        S1 = conv(rir(1,:),Y);
-        S2 = conv(rir(2,:),Y);
+        Y = stft(signal_raw(fs*(N_steps-1)*delta_t+1:end),window,window_size,n_bins,fs);
+        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2 3]),[source(t,1:2) 0],room_dim,rt60,size(Y,1));
     else    
-        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2,3]),[source(t,1:2) 0],room_dim,rt60,n_bins);	
-        Y = fft(signal_raw((t-1)*fs*delta_t+1: (t-1)*fs*delta_t +window_size).*window,n_bins);
-        S1 = rir(1,:).*Y';
-        S2 = rir(2,:).*Y';
+        Y = stft(signal_raw((t-1)*fs*delta_t+1: t*fs*delta_t ),window,window_size,n_bins,fs);
+        rir = rir_generator(c,fs,reshape(mic(t,:,:),[2 3]),[source(t,1:2) 0],room_dim,rt60,size(Y,1));
     end
-    
-    %STFT with signal array
-	%Z1 and 
-    S1_ind = double(S1~=0);
-    S2_ind = double(S2~=0);
-    tot_ind = S1_ind + S2_ind;
-    S1 = S1(tot_ind==2);
-    S2 = S2(tot_ind==2);
-    
-	for j = 1:N_particles
-		temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
-        a = temp_samp(:,1:2) < 0;
-        b =  temp_samp(:,1:2) > 6;
-        outside_samples = outside_samples + max(sum(a(:)),sum(b(:)));
-		%while ( (sum(a(:)) > 0) || (sum(b(:)) > 0))
-		%	temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
-        %end
-   		source_samp(t+1,j,:) = temp_samp;
+    Y = Y';
+    w(t+1,:) = w(t,:);
+    source_samp(t+1,:,:)=source_samp(t,:,:);
+    for j=1:size(Y,1)
+        for j = 1:N_particles
+            temp_samp = mvnrnd(Fs*reshape(source_samp(t+1,j,:),[4,1]),Qs,1);
+            a = temp_samp(:,1:2) < 0;
+            b =  temp_samp(:,1:2) > 6;
+            outside_samples = outside_samples + max(sum(a(:)),sum(b(:)));
+            %while ( (sum(a(:)) > 0) || (sum(b(:)) > 0))
+            %	temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
+            %end
+            source_samp(t+1,j,:) = temp_samp;
+        end
+        S1 = Y(t,:).*rir(1,:);
+        S2 = Y(t,:).*rir(2,:);
+        S1_ind = double(S1~=0);
+        S2_ind = double(S2~=0);
+        tot_ind = S1_ind + S2_ind;
+        S1 = S1(tot_ind==2);
+        S2 = S2(tot_ind==2);
+        
+        prob_new = SSP_EM(reshape(mic(t,:,:),[2 3]),reshape(source_samp(t+1,:,:),[N_particles 4])',[S1;S2],10e-1);
+        w(t+1,:) = w(t+1,:).*prob_new;
+        w(t+1,:) = w(t+1,:)./sum(w(t+1,:));
 	%Update equations for weight
     end
-    prob_new = SSP_EM(reshape(mic(t,:,:),[2 3]),reshape(source_samp(t,:,:),[N_particles 4])',[S1;S2],10e-1);
-	disp(norm(prob_new));
-    w(t+1,:) = w(t,:).*prob_new;
     figure;
     ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]),'PlotFcn','contour');
     hold on;
-    scatter(source(t,1),source(t,2));
-    
-end
-disp(outside_source);
-disp(outside_samples);
-[X,Y] = meshgrid(0:0.1:6,0:0.1:6);
-for i =1:N_steps
-    figure;
-    contour(X,Y,reshape(real(kdeprob(i,:)),size(X)));
+    scatter(source(t,1),source(t,2),'bo','DisplayName','Source Position');
     hold on;
-    scatter(source(:,1),source(:,2));
-	hold on;	
+    scatter(mic(t,:,1),mic(t,:,2),'d','DisplayName','Mic positions');
+    hold on;
+    scatter(source_samp(t,:,1),source_samp(t,:,2),'go','filled','DisplayName','Sampled Source Positions');
+    xlabel('east direction x(m)');
+    ylabel('north direction x(m)');
+    title('Distribution of particles across time');
+    legend;
 end
+disp("Number of source points outside room");
+disp(outside_source);
+disp("Number of sampled source points outside the room");
+disp(outside_samples);
