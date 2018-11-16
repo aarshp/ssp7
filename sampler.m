@@ -70,10 +70,11 @@ for t = 1:N_steps
 	temp_source = mvnrnd(F*reshape(source(t,:),[4 1]),Q,1);
     a = temp_source(1:2) <0 ;
     b = temp_source(1:2) > 6;
-    outside_source = outside_source + max(sum(a(:)),sum(b(:)));
-	%while ((sum(a(:)) > 0) || (sum(b(:)) > 0))
-	%	temp_source = mvnrnd(F*reshape(source(t,:),[4 1])   ,Q,1);
-    %end
+    
+	if ((sum(a(:)) > 0) || (sum(b(:)) > 0))
+        outside_source = outside_source + 1;
+        %	temp_source = mvnrnd(F*reshape(source(t,:),[4 1])   ,Q,1);
+    end
     
 	source(t+1,:) = temp_source;
     if t == N_steps
@@ -86,19 +87,20 @@ for t = 1:N_steps
     Y = Y';
     w(t+1,:) = w(t,:);
     source_samp(t+1,:,:)=source_samp(t,:,:);
-    for j=1:size(Y,1)
+    for i=1:size(Y,1)
         for j = 1:N_particles
             temp_samp = mvnrnd(Fs*reshape(source_samp(t+1,j,:),[4,1]),Qs,1);
             a = temp_samp(:,1:2) < 0;
             b =  temp_samp(:,1:2) > 6;
             outside_samples = outside_samples + max(sum(a(:)),sum(b(:)));
-            %while ( (sum(a(:)) > 0) || (sum(b(:)) > 0))
-            %	temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
-            %end
+            if ( (sum(a(:)) > 0) || (sum(b(:)) > 0))
+                outside_samples = outside_samples + 1;
+                %	temp_samp = mvnrnd(F*reshape(source_samp(t,j,:),[4,1]),Q,1);
+            end
             source_samp(t+1,j,:) = temp_samp;
         end
-        S1 = Y(t,:).*rir(1,:);
-        S2 = Y(t,:).*rir(2,:);
+        S1 = Y(i,:).*rir(1,:);
+        S2 = Y(i,:).*rir(2,:);
         S1_ind = double(S1~=0);
         S2_ind = double(S2~=0);
         tot_ind = S1_ind + S2_ind;
@@ -111,17 +113,17 @@ for t = 1:N_steps
 	%Update equations for weight
     end
     figure;
-    ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]),'PlotFcn','contour');
-    hold on;
-    scatter(source(t,1),source(t,2),'bo','DisplayName','Source Position');
-    hold on;
-    scatter(mic(t,:,1),mic(t,:,2),'d','DisplayName','Mic positions');
-    hold on;
-    scatter(source_samp(t,:,1),source_samp(t,:,2),'go','filled','DisplayName','Sampled Source Positions');
     xlabel('east direction x(m)');
     ylabel('north direction x(m)');
     title('Distribution of particles across time');
-    legend;
+    ksdensity(reshape(source_samp(t,:,1:2),[N_particles,2]),grid_pts,'Weights',reshape(w(t,:,:),[N_particles,1]),'PlotFcn','contour');
+    hold on;
+    scatter(source(t,1),source(t,2),'bo');
+    hold on;
+    scatter(mic(1),mic(t,:,2),'d');
+    hold on;
+    scatter(source_samp(t,:,1),source_samp(t,:,2),'go','filled');
+    legend('ksdensity','Source Position','Mic positions','Sampled Source Positions');
 end
 disp("Number of source points outside room");
 disp(outside_source);
