@@ -120,7 +120,7 @@ for t = 1:N_steps
     hold on;
     scatter(source(t,1),source(t,2),'bo');
     hold on;
-    scatter(mic(1),mic(t,:,2),'d');
+    scatter(mic(t,:,1),mic(t,:,2),'d');
     hold on;
     scatter(source_samp(t,:,1),source_samp(t,:,2),'go','filled');
     legend('ksdensity','Source Position','Mic positions','Sampled Source Positions');
